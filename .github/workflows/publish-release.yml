@@ -1,0 +1,31 @@
+name: Publish prepared release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish
+        required: true
+        type: string
+  push:
+    tags: ['publish-v*']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      INPUT_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Publish an existing draft with a Windows installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_tag="${INPUT_TAG:-${GITHUB_REF_NAME#publish-}}"
+          assets=$(gh release view "$release_tag" --json assets --jq '.assets[].name')
+          if ! printf '%s\n' "$assets" | grep -qi '\.exe$'; then
+            echo "Release has no Windows executable; refusing to publish."
+            exit 1
+          fi
+          gh release edit "$release_tag" --draft=false

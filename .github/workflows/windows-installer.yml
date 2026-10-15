@@ -39,3 +39,5 @@ jobs:
             gh release create $env:GITHUB_REF_NAME $installer.FullName --verify-tag --title "RepairDesk Offline $env:GITHUB_REF_NAME" --notes "Windows installer with uninstall support. Browser and desktop share persistent data on the same computer. This build is unsigned."
           }
           if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
+          gh release edit $env:GITHUB_REF_NAME --draft=false
+          if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

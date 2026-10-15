@@ -4,7 +4,7 @@ on:
   push:
     tags: ['v*']
 permissions:
-  contents: read
+  contents: write
 jobs:
   package:
     runs-on: windows-latest
@@ -15,10 +15,27 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm test
       - run: npm run dist:win
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
         with:
           name: RepairDesk-Windows-Installer
-          path: dist/*.exe
+          path: release/*.exe
+          if-no-files-found: error
+      - name: Publish tagged installer to GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $installer = Get-ChildItem release/*Setup*.exe
+          if ($installer.Count -ne 1) { throw "Expected exactly one installer" }
+          gh release view $env:GITHUB_REF_NAME *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:GITHUB_REF_NAME $installer.FullName
+          } else {
+            gh release create $env:GITHUB_REF_NAME $installer.FullName --verify-tag --title "RepairDesk Offline $env:GITHUB_REF_NAME" --notes "Windows installer with uninstall support. Browser and desktop share persistent data on the same computer. This build is unsigned."
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
